@@ -1,0 +1,102 @@
+"""Session management and engine"""
+
+import datetime
+import uuid
+from collections.abc import AsyncGenerator
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    Enum,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeBase, relationship
+
+# Change the string if you change database
+DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+# classes: users, providers, availability, appointments
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    full_name = Column(String(50), nullable=False)
+    email = Column(String(50), nullable=False)
+    hashed_password = Column(Text)
+    role = Column(
+        Enum("patient", "provier", "admin", name="user_roles"), nullable=False
+    )
+    is_active = Column(Boolean, default=True)
+
+
+class Provider(Base):
+    __tablename__ = "providers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    specialty = Column(String(50), nullable=False)
+    bio = Column(Text, nullable=False)
+    clinic_address = Column(Text, default=True)
+
+
+class Availability(Base):
+    __tablename__ = "availabilities"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider_id = Column(UUID(as_uuid=True), ForeignKey("providers.id"))
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    is_booked = Column(Boolean, default=False)
+
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    provider_id = Column(
+        UUID(as_uuid=True), ForeignKey("providers.id"), nullable=False
+    )
+    slot_id = Column(
+        UUID(as_uuid=True), ForeignKey("availabilities.id"), unique=True
+    )
+    status = Column(
+        Enum("scheduled", "completed", "canceled", name="appointment_status"),
+        default="scheduled",
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    # Soft delete column
+    deleted_at = Column(DateTime, nullable=False)
+
+
+engine = create_async_engine(DATABASE_URL)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session

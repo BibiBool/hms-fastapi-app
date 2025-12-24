@@ -1,0 +1,17 @@
+[project]
+name = "hms-fastapi-app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "black>=25.12.0",
+    "fastapi-users[sqlalchemy]>=15.0.3",
+    "fastapi[standard]>=0.127.0",
+    "flake8>=7.3.0",
+    "isort>=7.0.0",
+    "pylint>=4.0.4",
+    "python-dotenv>=1.2.1",
+    "sqlalchemy>=2.0.45",
+]
