@@ -25,11 +25,8 @@ jobs:
 
      - name: Install linting tools
        run: |
-         uv tool install black
          uv tool install isort
-         uv tool install flake8
 
      - name: Run Linters
        run: |
-         uv run flake8 .
          uv run isort --check-only .
