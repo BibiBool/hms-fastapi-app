@@ -1,67 +1,105 @@
-from fastapi import FastAPI, HTTPException, Depends
-from src.schemas.patients_schema import UserBase, UserCreate, UserRead
-from src.db.session import User, Provider, Availability, Appointment, create_db_and_tables, get_async_session
-from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.auth import auth_backend, current_active_user, fastapi_users
+from src.db.session import (
+    Appointment,
+    Availability,
+    Provider,
+    User,
+    create_db_and_tables,
+    get_async_session,
+)
+from src.schemas.patients_schema import (
+    ProviderBase,
+    ProviderRead,
+    UserCreate,
+    UserRead,
+    UserRole,
+    UserUpdate,
+)
+
 
 # Here the 'create_db_and_tables' function runs before the app
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Define the lifespan function"""
     await create_db_and_tables()
     yield
 
+
 app = FastAPI(lifespan=lifespan)
 
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend),
+    prefix='/auth/jwt',
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix='/auth',
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_reset_password_router(),
+    prefix='/auth',
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_verify_router(UserRead), prefix='/auth', tags=["auth"]
+)
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix='/users',
+    tags=["users"],
+)
 
 
-@app.post("/register", response_model=UserRead)
-async def register_users(
-    user_in: UserCreate,
-    session: AsyncSession = Depends(get_async_session)
-    ):
-    # Query the db to check if user already exists
-    query = select(User).where(User.email == user_in.email)
-    result = await session.execute(query)
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="User already registered")
-    
-    # Maap Pydantic data so SQLAlchemy Model
-    new_user = User(
-        full_name = user_in.full_name,
-        email = user_in.email,
-        role = user_in.role,
-        hashed_password = user_in.password
-    )
-
-    # Commit to the database
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
-
-    return new_user
-
-@app.get("/users", response_model=UserBase)
+@app.get("/users", response_model=list[UserRead])
 async def get_all_users(session: AsyncSession = Depends(get_async_session)):
     query = select(User)
     result = await session.execute(query)
     return result.scalars().all()
 
 
- 
+# ------- Providers endpoints ------
+@app.post("/providers", response_model=list[ProviderRead])
+async def create_provider(
+    provider_data: ProviderBase,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    # Security Check: Ensure the user actually has the provider role
+    if user.role != UserRole.PROVIDER:
+        raise HTTPException(
+            status_code=403,
+            detail="Only users with 'provider' role can create a profile",
+        )
 
-"""
-@app.get("/profile/{profile_id}")
-def get_profile_by_id(profile_id: int) -> ProfileResponse:
-    if profile_id not in profile_data:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return profile_data.get(profile_id)
+    # Check if profile already exists to prevent duplicates
+    existing_provider = await session.execute(
+        select(Provider).where(Provider.user_id == user.id)
+    )
+    if existing_provider.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400, detail="Provider profile already exists"
+        )
 
-@app.post("/profile")
-def create_profile(profile: ProfileCreate) -> ProfileResponse:
-    new_profile = {"first_name": profile.first_name,
-                    "last_name": profile.last_name,
-                    "dob": profile.dob}
-    profile_data[max(profile_data.keys()) + 1] = new_profile
-    return new_profile
-"""
+    new_provider = Provider(**provider_data.model_dump(), user_id=user.id)
+
+    session.add(new_provider)
+    await session.commit()
+    await session.refresh(new_provider)
+    return new_provider
+
+
+@app.get("/providers")
+async def list_providers(session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(Provider))
+    return result.scalars().all()
+
+
+# ------- Availability endpoints ------

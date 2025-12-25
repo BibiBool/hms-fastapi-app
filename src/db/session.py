@@ -4,15 +4,17 @@ import datetime
 import uuid
 from collections.abc import AsyncGenerator
 
+from fastapi import Depends
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     String,
     Text,
-    Boolean,
-    Enum,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import (
@@ -31,17 +33,15 @@ class Base(DeclarativeBase):
 
 
 # classes: users, providers, availability, appointments
-class User(Base):
+class User(SQLAlchemyBaseUserTableUUID, Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String(50), nullable=False)
-    email = Column(String(50), nullable=False)
-    hashed_password = Column(Text)
     role = Column(
-        Enum("patient", "provier", "admin", name="user_roles"), nullable=False
+        Enum("patient", "provider", "admin", name="user_roles"),
+        nullable=False,
+        default="patient",
     )
-    is_active = Column(Boolean, default=True)
 
 
 class Provider(Base):
@@ -58,7 +58,9 @@ class Availability(Base):
     __tablename__ = "availabilities"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    provider_id = Column(UUID(as_uuid=True), ForeignKey("providers.id"))
+    provider_id = Column(
+        UUID(as_uuid=True), ForeignKey("providers.id"), nullable=False
+    )
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
     is_booked = Column(Boolean, default=False)
@@ -68,12 +70,17 @@ class Appointment(Base):
     __tablename__ = "appointments"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    patient_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
     provider_id = Column(
         UUID(as_uuid=True), ForeignKey("providers.id"), nullable=False
     )
     slot_id = Column(
-        UUID(as_uuid=True), ForeignKey("availabilities.id"), unique=True
+        UUID(as_uuid=True),
+        ForeignKey("availabilities.id"),
+        unique=True,
+        nullable=False,
     )
     status = Column(
         Enum("scheduled", "completed", "canceled", name="appointment_status"),
@@ -85,9 +92,10 @@ class Appointment(Base):
     )
 
     # Soft delete column
-    deleted_at = Column(DateTime, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
 
+# Engine and Session Setup
 engine = create_async_engine(DATABASE_URL)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -100,3 +108,7 @@ async def create_db_and_tables():
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
+
+
+async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+    yield SQLAlchemyUserDatabase(session, User)
