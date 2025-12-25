@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +58,13 @@ app.include_router(
     prefix='/users',
     tags=["users"],
 )
+
+# ------- Home Page endpoint ------
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def read_index():
+    return FileResponse('static/index.html')
 
 
 @app.get("/users", response_model=list[UserRead])
