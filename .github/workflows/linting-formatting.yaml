@@ -25,7 +25,9 @@ jobs:
 
      - name: Install linting tools
        run: |
-         uv pip install black isort flake8
+         uv tool install black
+         uv tool install isort
+         uv tool install flake8
 
      - name: Run Linters
        run: |
