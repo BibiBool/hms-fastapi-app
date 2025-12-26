@@ -1,26 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Appointment Service</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
     <div id="app">
-        <h2>Appointment Service</h2>
-        
-        <div id="register-section">
-            <h3>Create Account</h3>
-            <p>Please register to manage your appointments.</p>
-            <input type="text" id="reg-fullname" placeholder="Full Name" required>
-            <input type="email" id="reg-email" placeholder="Email" required>
-            <input type="password" id="reg-password" placeholder="Password" required>
-            <button onclick="register()">Register</button>
-        </div>
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <h1 class="logo">🏥 Healthcare Appointment Service</h1>
+                <p class="tagline">Manage your healthcare appointments with ease</p>
+            </div>
+        </header>
 
-        <div id="appointments-section" class="hidden">
-            <h3>Your Appointments</h3>
-            <ul id="appointments"></ul>
-        </div>
+        <!-- Main Content -->
+        <main class="container">
+            <!-- Registration Form Section -->
+            <div id="register-section" class="card">
+                <div class="card-content">
+                    <h2>Create Your Account</h2>
+                    <p class="subtitle">Join us to schedule and manage your appointments</p>
+
+                    <form id="register-form" onsubmit="handleRegisterSubmit(event)">
+                        <div class="form-group">
+                            <label for="reg-fullname">Full Name</label>
+                            <input type="text" id="reg-fullname" placeholder="Enter your full name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reg-email">Email Address</label>
+                            <input type="email" id="reg-email" placeholder="Enter your email" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reg-password">Password</label>
+                            <input type="password" id="reg-password" placeholder="Enter a secure password" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="register-btn">Register</button>
+                    </form>
+
+                    <!-- Error Message Display -->
+                    <div id="error-message" class="alert alert-error hidden"></div>
+                </div>
+            </div>
+
+            <!-- Success Message Section -->
+            <div id="success-section" class="card hidden">
+                <div class="card-content success-content">
+                    <div class="success-icon">✓</div>
+                    <h2>Registration Successful!</h2>
+                    <p>You are registered and ready to use our service.</p>
+                    <p class="success-subtitle">You can now log in with your credentials.</p>
+                    <button class="btn btn-primary" onclick="resetForm()">Register Another Account</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2025 Healthcare Appointment Service. All rights reserved.</p>
+        </footer>
     </div>
+
     <script src="/static/script.js"></script>
 </body>
+
 </html>

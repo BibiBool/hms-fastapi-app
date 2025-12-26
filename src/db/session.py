@@ -1,5 +1,6 @@
 """Session management and engine"""
 
+import os
 import datetime
 import uuid
 from collections.abc import AsyncGenerator
@@ -25,8 +26,10 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 # Change the string if you change database
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set in the environment")
 
 class Base(DeclarativeBase):
     pass
