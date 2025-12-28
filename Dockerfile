@@ -19,6 +19,10 @@ COPY --from=builder /app/.venv /app/.venv
 
 COPY . .
 
+# Set ownership and switch user
+RUN chown -R appuser:appuser /app
+USER appuser
+
 # Place the virtual environment's bin at the front of the PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
